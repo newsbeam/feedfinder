@@ -15,6 +15,7 @@ from pathlib import PurePosixPath
 from bs4 import BeautifulSoup
 import requests
 
+TIMEOUT = 3
 
 def feeds(address: str) -> List[str]:
     # Python dictionaries are ordered so this serves us as an ordered set.
@@ -46,7 +47,7 @@ def find_links(sesh: requests.Session, url: ParseResult) -> List[str]:
     links = []
 
     try:
-        response = sesh.get(urlunparse(url), timeout=3)
+        response = sesh.get(urlunparse(url), timeout=TIMEOUT)
         response.raise_for_status()
     except requests.exceptions.RequestException:
         return []
@@ -130,7 +131,7 @@ def try_hrefs(sesh: requests.Session, url: ParseResult, soup: BeautifulSoup) -> 
 
 def could_be_feed(sesh: requests.Session, url: str) -> bool:
     try:
-        response = sesh.get(url)
+        response = sesh.get(url, timeout=TIMEOUT)
         response.raise_for_status()
     except requests.exceptions.RequestException:
         return False

@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='nm_feedfinder',
     packages=['nm_feedfinder'],
-    version='0.1',
+    version='0.2',
     license='ISC',
     description='Find Atom/RSS links of a website given a URL',
     author='newsmail.today',
