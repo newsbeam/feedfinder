@@ -188,8 +188,8 @@ def could_be_feed_text(data) -> bool:
 
 
 def is_url_feedlike(url: str) -> bool:
-    return url.endswith(".xml") or url.endswith(".rdf") or url.endswith(".xml") or url.endswith(
-        ".atom") or "feed" in url or "rss" in url
+    return url.endswith(".xml") or url.endswith(".rdf") or url.endswith(".rss") or url.endswith(
+        ".atom") or "feed" in url or "rss" in url or "atom" in url
 
 
 if __name__ == "__main__":
