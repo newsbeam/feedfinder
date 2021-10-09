@@ -18,28 +18,31 @@ import requests
 TIMEOUT = 3
 
 
-def feeds(address: str, exhaust: bool = True, climb: bool = True) -> List[str]:
+def feeds(
+    user_agent: str, address: str, exhaust: bool = True, climb: bool = True
+) -> List[str]:
     """
-    Given a url (e.g. http://example.com/a/b/c/) optionally climb up the path:
+    Given a url (e.g. https://example.com/a/b/c/) optionally climb up the path:
 
-    1. http://example.com/a/b/c/ (the input itself)
-    2. http://example.com/a/b/
-    3. http://example.com/a
-    4. http://example.com/
+    1. https://example.com/a/b/c/ (the input itself)
+    2. https://example.com/a/b/
+    3. https://example.com/a
+    4. https://example.com/
 
     ...and at each level check for possible locations for a feed:
 
     1. Auto-discovery links
-         
+
        `<link rel="alternate" type="application/X+xml" href="..." />`
     2. Common paths
-      
+
        E.g. `/feed`, `/rss` `/atom`, `/feed.xml`, `/atom.xml`, `/rss.xml`,
        `/index.atom`, `/index.rdf`, `/index.rss`, `/index.xml`, ...
     3. Hyperlinks to what might be a feed
 
        <a href="...">
 
+    :param user_agent: The User Agent to inform server.
     :param address: The URL to begin with.
     :param exhaust: Controls whether all the possible locations, at each level, shall be exhausted.
     :param climb: Controls whether the URL paths shall be climbed up.
@@ -59,6 +62,18 @@ def feeds(address: str, exhaust: bool = True, climb: bool = True) -> List[str]:
     # Take advantage of HTTP persistent connections to speed up multiple
     # requests to the same host
     with requests.Session() as sesh:
+        sesh.headers["User-Agent"] = user_agent
+
+        try:
+            response = sesh.get(address, timeout=TIMEOUT)
+            response.raise_for_status()
+        except requests.exceptions.RequestException:
+            return []
+
+        # Check if the URL itself might be the URL of a feed
+        if could_be_feed_text(response.text):
+            return [address]
+
         for url_ in urls:
             for link in find_links(sesh, url_, exhaust):
                 if link not in links:
@@ -67,7 +82,9 @@ def feeds(address: str, exhaust: bool = True, climb: bool = True) -> List[str]:
     return links
 
 
-def find_links(sesh: requests.Session, url: ParseResult, exhaust: bool = True) -> List[str]:
+def find_links(
+    sesh: requests.Session, url: ParseResult, exhaust: bool = True
+) -> List[str]:
     links = []
 
     try:
@@ -77,10 +94,6 @@ def find_links(sesh: requests.Session, url: ParseResult, exhaust: bool = True) -
         return []
 
     soup = BeautifulSoup(response.text, features="lxml")
-
-    # Check if the URL itself might be the URL of a feed
-    if could_be_feed_text(response.text):
-        return urlunparse(url)
 
     # Check for Atom/RSS auto-discovery using <link> elements
     links_ = try_link_alternate(url, soup, exhaust)
@@ -106,7 +119,9 @@ def find_links(sesh: requests.Session, url: ParseResult, exhaust: bool = True) -
     return links
 
 
-def try_link_alternate(url: ParseResult, soup: BeautifulSoup, exhaust: bool = True) -> List[str]:
+def try_link_alternate(
+    url: ParseResult, soup: BeautifulSoup, exhaust: bool = True
+) -> List[str]:
     """
     Tries finding <link rel="alternate" type="application/rss+xml" href="..." /> element,
     which is the semantic way.
@@ -130,7 +145,9 @@ def try_link_alternate(url: ParseResult, soup: BeautifulSoup, exhaust: bool = Tr
     return links
 
 
-def try_common_paths(sesh: requests.Session, url: ParseResult, exhaust: bool = False) -> List[str]:
+def try_common_paths(
+    sesh: requests.Session, url: ParseResult, exhaust: bool = False
+) -> List[str]:
     common_paths = [
         "feed",
         "rss",
@@ -156,7 +173,9 @@ def try_common_paths(sesh: requests.Session, url: ParseResult, exhaust: bool = F
     return links
 
 
-def try_hrefs(sesh: requests.Session, url: ParseResult, soup: BeautifulSoup) -> List[str]:
+def try_hrefs(
+    sesh: requests.Session, url: ParseResult, soup: BeautifulSoup
+) -> List[str]:
     links = []
     as_ = soup.find_all("a", href=True)
     urls = [urljoin(urlunparse(url), l.attrs["href"]) for l in as_]  # type: List[str]
@@ -202,6 +221,6 @@ def is_url_feedlike(url: str) -> bool:
 if __name__ == "__main__":
     import sys
 
-    urls = feeds(sys.argv[1]) or []
+    urls = feeds("nm_feedfinder", sys.argv[1]) or []
     for url in urls:
         print(url)
